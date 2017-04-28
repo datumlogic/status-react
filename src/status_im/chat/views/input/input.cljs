@@ -63,7 +63,7 @@
         command              (subscribe [:selected-chat-command])
         sending-in-progress? (subscribe [:chat-ui-props :sending-in-progress?])
         input-focused?       (subscribe [:chat-ui-props :input-focused?])]
-    (fn [{:keys [set-layout-height height]}]
+    (fn [{:keys [set-layout-height set-container-width height]}]
       [text-input
        {:ref                    #(when %
                                    (dispatch [:set-chat-ui-props {:input-ref %}]))
@@ -73,11 +73,8 @@
         :editable               (not @sending-in-progress?)
         :on-blur                #(do (dispatch [:set-chat-ui-props {:input-focused? false}])
                                      (set-layout-height 0))
-        :on-content-size-change (when-not @input-focused?
-                                  #(let [h (-> (.-nativeEvent %)
-                                               (.-contentSize)
-                                               (.-height))]
-                                     (set-layout-height h)))
+        :on-layout              (fn [e]
+                                  (set-container-width (.-width (.-layout (.-nativeEvent e)))))
         :on-change              #(let [h (-> (.-nativeEvent %)
                                              (.-contentSize)
                                              (.-height))]
@@ -163,23 +160,33 @@
                                                      100))}
                              (get-options type))])))))
 
+(defn input-touch-handler [{:keys [container-width height]}]
+  [view {:style (style/input-touch-handler-view container-width)}
+   [touchable-highlight {:style    {:flex 1}
+                         :on-press #(dispatch [:chat-input-focus :input-ref])}
+    [view {:flex 1}]]])
+
 (defn input-view [_]
   (let [component            (r/current-component)
         set-layout-width     #(r/set-state component {:width %})
         set-layout-height    #(r/set-state component {:height %})
+        set-container-width  #(r/set-state component {:container-width %})
         command              (subscribe [:selected-chat-command])]
     (r/create-class
       {:reagent-render
        (fn [{:keys [anim-margin]}]
-         (let [{:keys [width height]} (r/state component)
+         (let [{:keys [width height container-width]} (r/state component)
                command @command]
            [animated-view {:style (style/input-root height anim-margin)}
-            [basic-text-input {:set-layout-height set-layout-height
-                               :height            height}]
+            [basic-text-input {:set-layout-height   set-layout-height
+                               :set-container-width set-container-width
+                               :height              height}]
             [invisible-input {:set-layout-width set-layout-width}]
             [input-helper {:command command
                            :width   width}]
             [seq-input {:command-width width}]
+            [input-touch-handler {:container-width container-width
+                                  :height          height}]
             (if-not command
               [touchable-highlight
                {:on-press #(do (dispatch [:toggle-chat-ui-props :show-emoji?])

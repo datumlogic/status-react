@@ -47,6 +47,11 @@
    :android          {:border-radius 4}
    :ios              {:border-radius 8}})
 
+(defnstyle input-touch-handler-view [container-width]
+  {:position :absolute
+   :width    container-width
+   :height   min-input-height})
+
 (defnstyle input-view [content-height]
   {:flex           1
    :font-size      14
